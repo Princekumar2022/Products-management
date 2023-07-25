@@ -3,79 +3,190 @@ const orderModel = require("../models/orderModel")
 const userModel = require("../models/userModels")
 const productModel = require("../models/productModel")
 const mongoose = require("mongoose")
+const Razorpay = require('razorpay');
 
 
 
 
 const { isValid, isValidRequestBody, isEmpty } = require("../validator/validation")
 
+//razor pay 
+const razorpay = new Razorpay({
+    key_id: 'rzp_test_xbtU9g8sjSB3vN',
+    key_secret: 'n8ke6EPUy1Jf7ZAHRuusDZEm',
+  });
+  
 
 
+// const createOrder = async function (req, res) {
+//     try {
+//         const userId = req.params.userId
+
+//         const data = req.body
+
+//         if (!mongoose.isValidObjectId(userId)) { return res.status(400).send({ status: false, message: "user Id not valid" }) }
+
+//         let validUser = await userModel.findOne({ _id: userId })
+//         if (!validUser) { return res.status(404).send({ status: false, message: "user Id does not exist" }) }
+
+//         if (!isValidRequestBody(data)) { return res.status(400).send({ status: false, message: "body cant be empty please enter some data" }) }
+
+//         let { cartId, totalQuantity, status, cancellable } = data
+
+//         if (!isEmpty(cartId)) { return res.status(400).send({ status: false, message: "cartId is required" }) }
+
+//         if (!mongoose.isValidObjectId(cartId)) { return res.status(400).send({ status: false, message: "cart Id in not valid" }) }
+
+//         let cartData = await cartModel.findOne({ _id: cartId })
+
+//         if (!cartData) { return res.status(404).send({ status: false, message: "cart not found" }) }
+
+//         if (cancellable) {
+//             if (typeof (cancellable != "boolean")) { return res.status(404).send({ status: false, message: "cancellable should be true or false only" }) }
+//         }
+
+//         if (status) {
+//             if (!["pending", "completed", "cancled"].includes(status)) {
+//                 return res.status(400).send({ status: false, message: "status must be ['pending', 'completed', 'cancled']" })
+//             }
+//         }
+
+//         totalQuantity = 0;
+//         for (let i = 0; i < cartData.items.length; i++) {
+//             totalQuantity += cartData.items[i].quantity
+//         }
+
+//         const orderDetails = {
+//             userId: userId,
+//             items: cartData.items,
+//             totalPrice: cartData.totalPrice,
+//             totalItems: cartData.totalItems,
+//             totalQuantity: totalQuantity,
+//             cancellable: cancellable,
+//             status: status
+//         }
+
+//         await cartModel.findOneAndUpdate({ _id: cartId }, {
+//             $set: {
+//                 items: [],
+//                 totalPrice: 0,
+//                 totalItems: 0,
+//             }
+//         }, { new: true })
+
+//         const orderSave = await orderModel.create(orderDetails)
+//         return res.status(201).send({ status: true, message: "sucess", data: orderSave })
+
+
+//     } catch (error) {
+//         return res.status(500).send({ status: false, message: error.message });
+//     }
+// }
+
+// integrate Razor Pay
 const createOrder = async function (req, res) {
     try {
-        const userId = req.params.userId
-
-        const data = req.body
-
-        if (!mongoose.isValidObjectId(userId)) { return res.status(400).send({ status: false, message: "user Id not valid" }) }
-
-        let validUser = await userModel.findOne({ _id: userId })
-        if (!validUser) { return res.status(404).send({ status: false, message: "user Id does not exist" }) }
-
-        if (!isValidRequestBody(data)) { return res.status(400).send({ status: false, message: "body cant be empty please enter some data" }) }
-
-        let { cartId, totalQuantity, status, cancellable } = data
-
-        if (!isEmpty(cartId)) { return res.status(400).send({ status: false, message: "cartId is required" }) }
-
-        if (!mongoose.isValidObjectId(cartId)) { return res.status(400).send({ status: false, message: "cart Id in not valid" }) }
-
-        let cartData = await cartModel.findOne({ _id: cartId })
-
-        if (!cartData) { return res.status(404).send({ status: false, message: "cart not found" }) }
-
-        if (cancellable) {
-            if (typeof (cancellable != "boolean")) { return res.status(404).send({ status: false, message: "cancellable should be true or false only" }) }
+      const userId = req.params.userId;
+      const data = req.body;
+  
+      if (!mongoose.isValidObjectId(userId)) {
+        return res.status(400).send({ status: false, message: "user Id not valid" });
+      }
+  
+      let validUser = await userModel.findOne({ _id: userId });
+      if (!validUser) {
+        return res.status(404).send({ status: false, message: "user Id does not exist" });
+      }
+  
+      if (!isValidRequestBody(data)) {
+        return res.status(400).send({ status: false, message: "body cant be empty please enter some data" });
+      }
+  
+      let { cartId, totalQuantity, status, cancellable } = data;
+  
+      if (!isEmpty(cartId)) {
+        return res.status(400).send({ status: false, message: "cartId is required" });
+      }
+  
+      if (!mongoose.isValidObjectId(cartId)) {
+        return res.status(400).send({ status: false, message: "cart Id in not valid" });
+      }
+  
+      let cartData = await cartModel.findOne({ _id: cartId });
+  
+      if (!cartData) {
+        return res.status(404).send({ status: false, message: "cart not found" });
+      }
+  
+      if (cancellable) {
+        if (typeof cancellable != "boolean") {
+          return res.status(404).send({ status: false, message: "cancellable should be true or false only" });
         }
-
-        if (status) {
-            if (!["pending", "completed", "cancled"].includes(status)) {
-                return res.status(400).send({ status: false, message: "status must be ['pending', 'completed', 'cancled']" })
-            }
+      }
+  
+      if (status) {
+        if (!["pending", "completed", "cancelled"].includes(status)) {
+          return res.status(400).send({ status: false, message: "status must be ['pending', 'completed', 'cancelled']" });
         }
-
-        totalQuantity = 0;
-        for (let i = 0; i < cartData.items.length; i++) {
-            totalQuantity += cartData.items[i].quantity
-        }
-
-        const orderDetails = {
-            userId: userId,
-            items: cartData.items,
-            totalPrice: cartData.totalPrice,
-            totalItems: cartData.totalItems,
-            totalQuantity: totalQuantity,
-            cancellable: cancellable,
-            status: status
-        }
-
-        await cartModel.findOneAndUpdate({ _id: cartId }, {
-            $set: {
-                items: [],
-                totalPrice: 0,
-                totalItems: 0,
-            }
-        }, { new: true })
-
-        const orderSave = await orderModel.create(orderDetails)
-        return res.status(201).send({ status: true, message: "sucess", data: orderSave })
-
-
+      }
+  
+      totalQuantity = 0;
+      for (let i = 0; i < cartData.items.length; i++) {
+        totalQuantity += cartData.items[i].quantity;
+      }
+  
+      const orderDetails = {
+        userId: userId,
+        items: cartData.items,
+        totalPrice: cartData.totalPrice,
+        totalItems: cartData.totalItems,
+        totalQuantity: totalQuantity,
+        cancellable: cancellable,
+        status: status
+      };
+  
+      // Create an order in Razorpay
+      const razorpayOrder = await razorpay.orders.create({
+        amount: cartData.totalPrice * 100,
+        currency: 'INR', 
+        payment_capture: 1, 
+      });
+  
+      orderDetails.razorpayOrderId = razorpayOrder.id;
+  
+      await cartModel.findOneAndUpdate(
+        { _id: cartId },
+        {
+          $set: {
+            items: [],
+            totalPrice: 0,
+            totalItems: 0,
+          },
+        },
+        { new: true }
+      );
+  
+      const orderSave = await orderModel.create(orderDetails);
+      orderSave.receipt = orderSave._id.toString();
+  
+      await orderSave.save();
+        return res.status(201).send({
+        status: true,
+        message: 'success',
+        data: {
+          orderSave: orderSave,
+          orderId: orderSave._id,
+          razorpayOrderId: razorpayOrder.id,
+          razorpayKey: razorpay.key_id,
+          amount: razorpayOrder.amount,
+          currency: razorpayOrder.currency,
+        },
+      });
     } catch (error) {
-        return res.status(500).send({ status: false, message: error.message });
+      return res.status(500).send({ status: false, message: error.message });
     }
-}
-
+  };
+  
 
 
 
